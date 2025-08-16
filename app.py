@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+import pytz
 from PIL import Image
 import io
 import numpy as np
@@ -96,6 +97,15 @@ def init_google_sheets():
         """)
         return None
 
+def get_ist_time():
+    """Get current time in IST"""
+    ist = pytz.timezone('Asia/Kolkata')
+    return datetime.now(ist)
+
+def format_ist_datetime():
+    """Format current IST datetime for database"""
+    return get_ist_time().strftime("%Y-%m-%d %H:%M:%S")
+
 def get_exit_statistics(sheet):
     """Get real-time exit statistics"""
     try:
@@ -128,7 +138,7 @@ def process_student_exit(qr_data, sheet):
         for i, row in enumerate(records, start=2):
             if str(row["ID"]) == str(qr_data):
                 found = True
-                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                now = format_ist_datetime()  # Use IST time
                 
                 # Check if student has entered
                 entry_status = row.get("EntryStatus", "")
@@ -153,6 +163,7 @@ def process_student_exit(qr_data, sheet):
                     entry_time = row.get("EntryTime", "")
                     if entry_time:
                         try:
+                            # Parse entry time and calculate duration in IST
                             entry_dt = datetime.strptime(entry_time, "%Y-%m-%d %H:%M:%S")
                             exit_dt = datetime.strptime(now, "%Y-%m-%d %H:%M:%S")
                             duration = exit_dt - entry_dt
@@ -436,9 +447,10 @@ def main():
     # Additional info
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("⏰ Current Time", datetime.now().strftime("%H:%M:%S"))
+        current_ist = get_ist_time()
+        st.metric("⏰ Current Time (IST)", current_ist.strftime("%H:%M:%S"))
     with col2:
-        st.metric("📅 Date", datetime.now().strftime("%Y-%m-%d"))
+        st.metric("📅 Date", current_ist.strftime("%Y-%m-%d"))
     
     # Exit Information
     st.write("---")
