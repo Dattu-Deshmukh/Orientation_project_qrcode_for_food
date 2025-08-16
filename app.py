@@ -485,17 +485,17 @@ def main():
     For entry check-in, please use the **ENTRY SCANNER** at the main entrance.
     """)
     
-    # Emergency Contact
-    st.warning("""
-    **🆘 Need Help?**
-    Contact Exit Station Manager: **+91-XXXX-XXXXXX** | Email: **exit@nrec.edu.in**
-    """)
+    # # Emergency Contact
+    # st.warning("""
+    # **🆘 Need Help?**
+    # Contact Exit Station Manager: **+91-XXXX-XXXXXX** | Email: **exit@nrec.edu.in**
+    # """)
     
     # Footer
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
         <h4>🚪 Exit Scanner Station</h4>
-        <p><strong>NREC Orientation Day - August 18th, 2025</strong></p>
+        <p><strong>NRCM Orientation Day - August 18th, 2025</strong></p>
         <p style="font-size: 12px; margin-top: 15px;">
             © 2025 NRCM - Exit Management System
         </p>
