@@ -53,7 +53,7 @@ def detect_qr_with_opencv(image):
 
 @st.cache_resource
 def init_google_sheets():
-    """Initialize Google Sheets connection with caching"""
+    """Initialize Google Sheets connection using st.secrets only"""
     if not GSPREAD_AVAILABLE:
         st.error("Google Sheets integration not available. Please install required packages.")
         return None
@@ -62,20 +62,38 @@ def init_google_sheets():
         scope = ["https://spreadsheets.google.com/feeds",
                  "https://www.googleapis.com/auth/drive"]
         
-        # Try to load credentials from Streamlit secrets first
-        if "gcp_service_account" in st.secrets:
-            creds_dict = dict(st.secrets["gcp_service_account"])
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        else:
-            # Fallback to local file
-            creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+        # Load credentials from Streamlit secrets only
+        if "gcp_service_account" not in st.secrets:
+            st.error("❌ **Google Sheets credentials not found in Streamlit secrets!**")
+            st.info("""
+            **Setup Instructions:**
+            1. Go to Streamlit Cloud → Your App → Settings → Secrets
+            2. Add your service account JSON under key `gcp_service_account`
+            3. Redeploy your app
+            """)
+            return None
+            
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         
         client = gspread.authorize(creds)
         sheet = client.open("orientation_passes").sheet1
         return sheet
+        
+    except FileNotFoundError as e:
+        st.error("❌ **Google Sheet 'orientation_passes' not found!**")
+        st.info("Please ensure your Google Sheet is named exactly 'orientation_passes' and shared with the service account.")
+        return None
+        
     except Exception as e:
-        st.error(f"Failed to connect to Google Sheets: {e}")
-        st.info("Please check your credentials configuration.")
+        st.error(f"❌ **Failed to connect to Google Sheets:** {e}")
+        st.info("""
+        **Troubleshooting:**
+        1. Verify service account JSON is correctly added to Streamlit secrets
+        2. Ensure Google Sheet is named 'orientation_passes'
+        3. Share the sheet with your service account email
+        4. Enable Google Sheets API and Google Drive API
+        """)
         return None
 
 def get_exit_statistics(sheet):
@@ -254,12 +272,26 @@ def main():
     # Initialize Google Sheets
     if not GSPREAD_AVAILABLE:
         st.error("❌ **Google Sheets integration not available**")
-        st.info("To enable Google Sheets functionality, please ensure these packages are installed:")
+        st.info("To enable Google Sheets functionality, please install required packages:")
         st.code("pip install gspread oauth2client")
+        st.info("**For Streamlit Cloud:** Add these to your requirements.txt file")
         st.stop()
     
     sheet = init_google_sheets()
     if not sheet:
+        st.error("🔧 **Unable to connect to Google Sheets**")
+        st.info("""
+        **For Streamlit Cloud Setup:**
+        1. Go to your app dashboard
+        2. Click Settings → Secrets
+        3. Add your service account JSON under `gcp_service_account`
+        4. Redeploy the app
+        
+        **Service Account Setup:**
+        - Enable Google Sheets API and Google Drive API
+        - Share 'orientation_passes' sheet with service account email
+        - Ensure proper JSON format in secrets
+        """)
         st.stop()
     
     # Create tabs for different input methods
@@ -442,16 +474,16 @@ def main():
     """)
     
     # Emergency Contact
-    # st.warning("""
-    # **🆘 Need Help?**
-    # Contact Exit Station Manager: **+91-9703962233** | Email: **exit@nrec.edu.in**
-    # """)
+    st.warning("""
+    **🆘 Need Help?**
+    Contact Exit Station Manager: **+91-XXXX-XXXXXX** | Email: **exit@nrec.edu.in**
+    """)
     
     # Footer
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
         <h4>🚪 Exit Scanner Station</h4>
-        <p><strong>NRCM Orientation Day - August 18th, 2025</strong></p>
+        <p><strong>NREC Orientation Day - August 18th, 2025</strong></p>
         <p style="font-size: 12px; margin-top: 15px;">
             © 2025 NRCM - Exit Management System
         </p>
