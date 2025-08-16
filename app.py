@@ -206,7 +206,7 @@ def process_student_exit(qr_data, sheet):
 
 def main():
     st.set_page_config(
-        page_title="NREC Exit Scanner", 
+        page_title="NRCM Exit Scanner", 
         page_icon="🚪", 
         layout="wide"
     )
@@ -488,7 +488,7 @@ def main():
     # # Emergency Contact
     # st.warning("""
     # **🆘 Need Help?**
-    # Contact Exit Station Manager: **+91-XXXX-XXXXXX** | Email: **exit@nrec.edu.in**
+    # Contact Exit Station Manager: **+91-XXXX-XXXXXX** | Email: **exit@NRCM.edu.in**
     # """)
     
     # Footer
