@@ -78,8 +78,8 @@ def init_google_sheets():
         st.info("Please check your credentials configuration.")
         return None
 
-def get_entry_statistics(sheet):
-    """Get real-time entry statistics"""
+def get_exit_statistics(sheet):
+    """Get real-time exit statistics"""
     try:
         records = sheet.get_all_records()
         total_entries = sum(1 for row in records if row.get("EntryStatus") == "Entered")
@@ -96,13 +96,13 @@ def get_entry_statistics(sheet):
     except Exception as e:
         return {
             "total_entries": "Error",
-            "total_exits": "Error", 
-            "currently_present": "Error",
+            "total_exits": "Error",
+            "currently_present": "Error", 
             "total_students": "Error"
         }
 
-def process_student_entry(qr_data, sheet):
-    """Process the scanned student data for ENTRY ONLY"""
+def process_student_exit(qr_data, sheet):
+    """Process the scanned student data for EXIT ONLY"""
     try:
         records = sheet.get_all_records()
         found = False
@@ -112,41 +112,60 @@ def process_student_entry(qr_data, sheet):
                 found = True
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                # Check current entry status
+                # Check if student has entered
                 entry_status = row.get("EntryStatus", "")
                 
-                # Only handle entry - no exit functionality
-                if not entry_status or entry_status == "":
-                    sheet.update_cell(i, 4, "Entered")  # EntryStatus column
-                    sheet.update_cell(i, 5, now)        # EntryTime column
-                    st.success(f"🎉 **WELCOME TO NREC!**")
-                    st.success(f"✅ **Entry recorded** for **{row['Name']}**")
+                if not entry_status:
+                    st.error(f"❌ **{row['Name']}** hasn't checked in yet!")
+                    st.info("Please check-in at the ENTRY SCANNER first.")
+                    return
+                
+                # Handle EXIT only
+                exit_status = row.get("ExitStatus", "")
+                
+                if not exit_status or exit_status == "":
+                    sheet.update_cell(i, 6, "Exited")   # ExitStatus column
+                    sheet.update_cell(i, 7, now)        # ExitTime column
+                    st.success(f"👋 **Thank you for attending!**")
+                    st.success(f"🚪 **Exit recorded** for **{row['Name']}**")
                     st.info(f"📚 **Branch:** {row['Branch']}")
-                    st.info(f"🕐 **Entry Time:** {now}")
-                    st.balloons()
+                    st.info(f"🕐 **Exit Time:** {now}")
                     
-                    # Show welcome message
+                    # Calculate duration if entry time exists
+                    entry_time = row.get("EntryTime", "")
+                    if entry_time:
+                        try:
+                            entry_dt = datetime.strptime(entry_time, "%Y-%m-%d %H:%M:%S")
+                            exit_dt = datetime.strptime(now, "%Y-%m-%d %H:%M:%S")
+                            duration = exit_dt - entry_dt
+                            hours = duration.total_seconds() // 3600
+                            minutes = (duration.total_seconds() % 3600) // 60
+                            st.info(f"⏱️ **Total Duration:** {int(hours)}h {int(minutes)}m")
+                        except:
+                            pass
+                    
+                    # Show goodbye message
                     st.markdown("""
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    <div style="background: linear-gradient(135deg, #ff7b7b 0%, #667eea 100%); 
                                 color: white; padding: 20px; border-radius: 15px; 
                                 text-align: center; margin: 20px 0;">
-                        <h3>🎓 Welcome to Orientation Day!</h3>
-                        <p>Your entry has been successfully recorded.</p>
-                        <p><strong>Next:</strong> Proceed to the orientation hall</p>
+                        <h3>🎓 Thank You for Attending!</h3>
+                        <p>Your exit has been successfully recorded.</p>
+                        <p><strong>Safe journey home!</strong></p>
+                        <p>We hope you enjoyed the orientation program.</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
-                # Already entered
                 else:
-                    st.warning(f"⚠️ **{row['Name']}** has already checked in!")
-                    st.info(f"📅 **Previous Entry Time:** {row.get('EntryTime', 'Not recorded')}")
-                    st.info("✅ You're all set! Proceed to the orientation activities.")
+                    st.warning(f"⚠️ **{row['Name']}** has already checked out!")
+                    st.info(f"📅 **Previous Exit Time:** {row.get('ExitTime', 'Not recorded')}")
+                    st.info("✅ Exit was already recorded. Safe journey!")
                 
                 break
         
         if not found:
-            st.error("❌ **Student ID not found** in orientation records.")
-            st.write("Please verify your QR code or contact the registration desk.")
+            st.error("❌ **Student ID not found** in records.")
+            st.write("Please verify the QR code or contact the administrator.")
             
     except Exception as e:
         st.error(f"**Database Error:** {e}")
@@ -158,7 +177,7 @@ def process_student_entry(qr_data, sheet):
 
 def main():
     st.set_page_config(
-        page_title="NREC Entry Scanner", 
+        page_title="NREC Exit Scanner", 
         page_icon="🚪", 
         layout="wide"
     )
@@ -168,7 +187,7 @@ def main():
     <style>
     .main-header {
         text-align: center;
-        color: #4CAF50;
+        color: #FF5722;
         font-size: 3rem;
         margin-bottom: 0.5rem;
         font-weight: bold;
@@ -180,8 +199,8 @@ def main():
         margin-bottom: 1rem;
         font-style: italic;
     }
-    .entry-banner {
-        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    .exit-banner {
+        background: linear-gradient(135deg, #FF5722 0%, #E91E63 100%);
         color: white;
         padding: 25px;
         border-radius: 15px;
@@ -190,37 +209,45 @@ def main():
         box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     }
     .instruction-box {
-        background-color: #e8f5e8;
+        background-color: #ffebee;
         padding: 1rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #4CAF50;
+        border-left: 4px solid #FF5722;
         margin: 1rem 0;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding-left: 20px;
+        padding-right: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
     
     # Header
-    st.markdown('<h1 class="main-header">🚪 ENTRY SCANNER</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">🚪 EXIT SCANNER</h1>', unsafe_allow_html=True)
     st.markdown('<h2 class="college-header">Narsimha Reddy Engineering College</h2>', unsafe_allow_html=True)
     
-    # Entry Banner
+    # Exit Banner
     st.markdown("""
-    <div class="entry-banner">
-        <h2>🎓 ORIENTATION DAY CHECK-IN</h2>
+    <div class="exit-banner">
+        <h2>👋 ORIENTATION DAY CHECK-OUT</h2>
         <h3>📅 August 18th, 2025</h3>
-        <p><strong>Welcome Students!</strong> Scan your QR code to check-in for orientation.</p>
-        <p>🚪 <strong>This station is for ENTRY ONLY</strong></p>
+        <p><strong>Thank You for Attending!</strong> Scan your QR code to check-out.</p>
+        <p>🚪 <strong>This station is for EXIT ONLY</strong></p>
     </div>
     """, unsafe_allow_html=True)
     
     st.markdown("""
     <div class="instruction-box">
-    📌 <strong>Entry Instructions:</strong><br>
-    1. <strong>Scan your student QR code</strong> to check-in<br>
+    📌 <strong>Exit Instructions:</strong><br>
+    1. <strong>Scan your student QR code</strong> to check-out<br>
     2. Wait for confirmation message<br>
-    3. Proceed to the orientation hall<br>
-    4. Keep your student ID ready for verification<br>
-    5. For exit, use the <strong>EXIT SCANNER</strong> at the other station
+    3. Thank you for attending orientation<br>
+    4. Safe journey home!<br>
+    5. For entry, use the <strong>ENTRY SCANNER</strong> at the main entrance
     </div>
     """, unsafe_allow_html=True)
     
@@ -245,22 +272,22 @@ def main():
         
         with col1:
             # Primary Camera Scanner
-            st.write("#### 📷 Scan Student QR Code")
+            st.write("#### 📷 Scan Student QR Code for Exit")
             camera_image = st.camera_input(
                 "Point camera at student's QR code and take photo",
-                help="For best results: ensure good lighting, hold steady, QR code fills frame"
+                help="Scan when student is leaving the orientation"
             )
             
             if camera_image:
                 img = Image.open(camera_image)
                 st.image(img, caption="📸 Captured QR Code", width=400)
                 
-                with st.spinner("🔍 Processing entry..."):
+                with st.spinner("🔍 Processing exit..."):
                     qr_data = detect_qr_with_opencv(img)
                 
                 if qr_data:
                     st.success(f"📋 **Scanned Student ID:** {qr_data}")
-                    process_student_entry(qr_data, sheet)
+                    process_student_exit(qr_data, sheet)
                 else:
                     st.error("⚠️ **No QR code detected** in the image.")
                     st.write("**Try again with:**")
@@ -269,11 +296,28 @@ def main():
                     st.write("• Hold camera steady")
         
         with col2:
-            # Entry Status
-            st.write("#### 🚪 Entry Status")
+            # Exit Status
+            st.write("#### 🚪 Exit Status")
             
             if not camera_image:
-                st.info("📷 **Ready for check-in**\nScan QR code to record entry")
+                st.info("📷 **Ready for check-out**\nScan QR code to record exit")
+            
+            st.write("#### 🚪 Exit Process")
+            st.success("""
+            **✅ Exit Requirements:**
+            • Must have checked-in first
+            • Valid student QR code
+            • Clear scan image
+            • Complete orientation attendance
+            """)
+            
+            st.info("""
+            **📋 What happens on exit:**
+            • Records exit time
+            • Calculates total duration
+            • Shows thank you message
+            • Updates attendance records
+            """)
             
             # Alternative upload option
             st.write("---")
@@ -288,12 +332,12 @@ def main():
                 img = Image.open(uploaded_file)
                 st.image(img, caption="Uploaded QR Code", width=300)
                 
-                with st.spinner("🔍 Processing entry..."):
+                with st.spinner("🔍 Processing exit..."):
                     qr_data = detect_qr_with_opencv(img)
                 
                 if qr_data:
                     st.success(f"📋 **Scanned ID:** {qr_data}")
-                    process_student_entry(qr_data, sheet)
+                    process_student_exit(qr_data, sheet)
                 else:
                     st.error("⚠️ No QR code detected in uploaded image.")
 
@@ -304,45 +348,57 @@ def main():
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            st.write("#### ✏️ Enter Student ID")
+            st.write("#### ✏️ Enter Student ID for Exit")
             manual_id = st.text_input(
                 "Student ID:", 
                 placeholder="e.g., 2025001",
                 help="Enter the student ID exactly as shown on the ID card"
             )
             
-            if st.button("🚪 Process Entry", type="primary", use_container_width=True):
+            if st.button("🚪 Process Exit", type="primary", use_container_width=True):
                 if manual_id.strip():
-                    process_student_entry(manual_id.strip(), sheet)
+                    process_student_exit(manual_id.strip(), sheet)
                 else:
                     st.warning("⚠️ Please enter a valid Student ID.")
         
         with col2:
-            st.write("#### 📊 Entry Guidelines")
+            st.write("#### 📊 Manual Exit Guidelines")
             st.success("""
             **✅ When to use Manual Entry:**
             • Camera not working
             • QR code damaged/unreadable
             • Student forgot QR code
             • Technical issues
+            • Emergency situations
+            """)
+            
+            st.warning("""
+            **⚠️ Exit Verification:**
+            • Verify student identity
+            • Check entry status first
+            • Confirm orientation completion
+            • Record any special notes
             """)
     
-    # Entry Statistics
+    # Exit Statistics
     st.write("---")
-    st.write("#### 📈 Today's Entry Stats")
+    st.write("#### 📈 Today's Exit Stats")
     
     # Get real-time statistics
-    stats = get_entry_statistics(sheet)
+    stats = get_exit_statistics(sheet)
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("🟢 Total Entries", stats["total_entries"], help="Students checked in today")
+        st.metric("🚪 Total Exits", stats["total_exits"], help="Students who have left")
     
     with col2:
-        st.metric("👥 Currently Present", stats["currently_present"], help="Students currently inside")
+        st.metric("👥 Still Present", stats["currently_present"], help="Students still inside")
     
     with col3:
+        st.metric("🟢 Total Entries", stats["total_entries"], help="Students who entered today")
+    
+    with col4:
         st.metric("📊 Total Students", stats["total_students"], help="Total registered students")
     
     # Additional info
@@ -352,20 +408,52 @@ def main():
     with col2:
         st.metric("📅 Date", datetime.now().strftime("%Y-%m-%d"))
     
+    # Exit Information
+    st.write("---")
+    st.write("#### 🎓 Exit Information")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info("""
+        **🚪 Exit Process:**
+        • Student scans QR for checkout
+        • System records exit time
+        • Calculates attendance duration
+        • Shows thank you message
+        • Updates final attendance
+        """)
+        
+    with col2:
+        st.success("""
+        **✅ Completed Orientation:**
+        • Welcome session attended
+        • Campus tour completed
+        • Department introduction done
+        • Student activities explored
+        • All requirements met
+        """)
+    
     # Important Notice
     st.markdown("---")
     st.error("""
-    **🔄 Important:** This is the **ENTRY ONLY** station. 
-    For exit or food tracking, please use the **EXIT/FOOD SCANNER** at the designated station.
+    **🔄 Important:** This is the **EXIT ONLY** station. 
+    For entry check-in, please use the **ENTRY SCANNER** at the main entrance.
+    """)
+    
+    # Emergency Contact
+    st.warning("""
+    **🆘 Need Help?**
+    Contact Exit Station Manager: **+91-XXXX-XXXXXX** | Email: **exit@nrec.edu.in**
     """)
     
     # Footer
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
-        <h4>🚪 Entry Scanner Station</h4>
+        <h4>🚪 Exit Scanner Station</h4>
         <p><strong>NREC Orientation Day - August 18th, 2025</strong></p>
         <p style="font-size: 12px; margin-top: 15px;">
-            © 2025 NRCM - Entry Management System
+            © 2025 NRCM - Exit Management System
         </p>
     </div>
     """, unsafe_allow_html=True)
